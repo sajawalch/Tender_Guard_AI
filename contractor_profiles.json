@@ -2,34 +2,51 @@
   {
     "contractor_name": "Al-Hamd Builders (Pvt) Ltd",
     "pec_category_held": "C-3",
-    "min_contract_value_pkr": 5000000,
-    "max_contract_value_pkr": 50000000,
-    "max_bid_security_pkr": 2000000,
+    "min_contract_value_pkr": 2000000.0,
+    "max_contract_value_pkr": 5000000.0,
+    "max_bid_security_pkr": 200000.0,
     "max_acceptable_ld_rate_percent_per_day": 0.1,
     "max_acceptable_ld_cap_percent": 10.0,
     "min_required_advance_payment_percent": 10.0,
     "max_acceptable_payment_cycle_days": 30,
     "is_active_taxpayer": true,
     "years_experience": 8,
-    "preferred_project_types": ["building_construction", "repair_maintenance"],
-    "max_acceptable_completion_period_days": 120,
-    "_notes": "Mid-sized, moderate risk appetite — should Select on well-matched small/mid tenders, Reject on oversized or high-penalty ones."
+    "preferred_project_types": [
+      "building_construction",
+      "repair_maintenance"
+    ],
+    "max_acceptable_completion_period_days": 130,
+    "_notes": "Mid-sized, moderate risk appetite — should Select on well-matched small/mid tenders, Reject on oversized or high-penalty ones.",
+    "company_address": "Plot 123, Industrial Estate, Faisalabad",
+    "contact_person": "Muhammad Ali",
+    "contact_designation": "Managing Director",
+    "phone": "+92-41-0000101",
+    "email": "info@alhamd-builders.example.com",
+    "ntn_number": "0000101-1"
   },
   {
     "contractor_name": "Pak Frontier Constructors",
     "pec_category_held": "C-6",
-    "min_contract_value_pkr": 500000,
-    "max_contract_value_pkr": 8000000,
-    "max_bid_security_pkr": 300000,
+    "min_contract_value_pkr": 500000.0,
+    "max_contract_value_pkr": 8000000.0,
+    "max_bid_security_pkr": 300000.0,
     "max_acceptable_ld_rate_percent_per_day": 0.067,
     "max_acceptable_ld_cap_percent": 10.0,
     "min_required_advance_payment_percent": 0.0,
     "max_acceptable_payment_cycle_days": 45,
     "is_active_taxpayer": true,
     "years_experience": 2,
-    "preferred_project_types": ["repair_maintenance"],
+    "preferred_project_types": [
+      "repair_maintenance"
+    ],
     "max_acceptable_completion_period_days": 60,
-    "_notes": "Very small, new entrant — lowest PEC category, tight budget. Should Reject on almost every mid/large tender in your dataset — good 'correctly rejects' test case."
+    "_notes": "Very small, new entrant — lowest PEC category, tight budget. Should Reject on almost every mid/large tender in your dataset — good 'correctly rejects' test case.",
+    "company_address": "Office 4, Hayatabad Phase 3, Peshawar",
+    "contact_person": "Imran Khan Afridi",
+    "contact_designation": "Proprietor",
+    "phone": "+92-91-0000102",
+    "email": "contact@pakfrontier.example.com",
+    "ntn_number": "0000102-2"
   },
   {
     "contractor_name": "Khyber Engineering & Construction Co.",
@@ -43,9 +60,18 @@
     "max_acceptable_payment_cycle_days": 30,
     "is_active_taxpayer": true,
     "years_experience": 14,
-    "preferred_project_types": ["building_construction", "roads_highways"],
+    "preferred_project_types": [
+      "building_construction",
+      "roads_highways"
+    ],
     "max_acceptable_completion_period_days": 240,
-    "_notes": "Established mid-large firm — should Select most reasonable tenders, Reject only the very largest (e.g. the PKR 1B+ transmission line tender)."
+    "_notes": "Established mid-large firm — should Select most reasonable tenders, Reject only the very largest (e.g. the PKR 1B+ transmission line tender).",
+    "company_address": "12-B, University Road, Peshawar",
+    "contact_person": "Sher Zaman",
+    "contact_designation": "Chief Executive",
+    "phone": "+92-91-0000103",
+    "email": "tenders@khyber-eng.example.com",
+    "ntn_number": "0000103-3"
   },
   {
     "contractor_name": "Indus Valley Infrastructure Ltd",
@@ -59,9 +85,19 @@
     "max_acceptable_payment_cycle_days": 60,
     "is_active_taxpayer": true,
     "years_experience": 22,
-    "preferred_project_types": ["roads_highways", "water_power", "building_construction"],
+    "preferred_project_types": [
+      "roads_highways",
+      "water_power",
+      "building_construction"
+    ],
     "max_acceptable_completion_period_days": 540,
-    "_notes": "Large firm, high capacity — one of the few profiles that could Select the PKR 1B+ NTDC transmission-line tender."
+    "_notes": "Large firm, high capacity — one of the few profiles that could Select the PKR 1B+ NTDC transmission-line tender.",
+    "company_address": "5th Floor, Business Centre, Clifton, Karachi",
+    "contact_person": "Ayesha Siddiqui",
+    "contact_designation": "Director Operations",
+    "phone": "+92-21-0000104",
+    "email": "bids@indusvalley.example.com",
+    "ntn_number": "0000104-4"
   },
   {
     "contractor_name": "Rawal Engineers",
@@ -75,9 +111,18 @@
     "max_acceptable_payment_cycle_days": 30,
     "is_active_taxpayer": false,
     "years_experience": 5,
-    "preferred_project_types": ["electrical_mechanical", "repair_maintenance"],
+    "preferred_project_types": [
+      "electrical_mechanical",
+      "repair_maintenance"
+    ],
     "max_acceptable_completion_period_days": 90,
-    "_notes": "Deliberately NOT an active taxpayer — good test case for tenders requiring FBR Active Taxpayer status (e.g. TS0000015708E). Also a low LD tolerance, strict advance-payment requirement, to exercise multiple simultaneous rejection reasons."
+    "_notes": "Deliberately NOT an active taxpayer — good test case for tenders requiring FBR Active Taxpayer status (e.g. TS0000015708E). Also a low LD tolerance, strict advance-payment requirement, to exercise multiple simultaneous rejection reasons.",
+    "company_address": "House 7, Street 12, F-8/3, Islamabad",
+    "contact_person": "Tariq Mehmood",
+    "contact_designation": "Partner",
+    "phone": "+92-51-0000105",
+    "email": "info@rawal-engineers.example.com",
+    "ntn_number": "0000105-5"
   },
   {
     "contractor_name": "Margalla Developers & Associates",
@@ -91,25 +136,43 @@
     "max_acceptable_payment_cycle_days": 30,
     "is_active_taxpayer": true,
     "years_experience": 4,
-    "preferred_project_types": ["building_construction"],
+    "preferred_project_types": [
+      "building_construction"
+    ],
     "max_acceptable_completion_period_days": 150,
-    "_notes": "Small firm, borderline category — useful for tenders near the C-4/C-5 boundary to test exact PEC-category comparison logic."
+    "_notes": "Small firm, borderline category — useful for tenders near the C-4/C-5 boundary to test exact PEC-category comparison logic.",
+    "company_address": "Shop 9, Blue Area, Islamabad",
+    "contact_person": "Nadia Rehman",
+    "contact_designation": "General Manager",
+    "phone": "+92-51-0000106",
+    "email": "office@margalla-dev.example.com",
+    "ntn_number": "0000106-6"
   },
   {
     "contractor_name": "Sindh Horizon Builders",
     "pec_category_held": "C-2",
-    "min_contract_value_pkr": 8000000,
-    "max_contract_value_pkr": 100000000,
-    "max_bid_security_pkr": 4000000,
+    "min_contract_value_pkr": 8000000.0,
+    "max_contract_value_pkr": 100000000.0,
+    "max_bid_security_pkr": 4000000.0,
     "max_acceptable_ld_rate_percent_per_day": 0.2,
     "max_acceptable_ld_cap_percent": 10.0,
     "min_required_advance_payment_percent": 0.0,
     "max_acceptable_payment_cycle_days": 30,
     "is_active_taxpayer": true,
     "years_experience": 11,
-    "preferred_project_types": ["building_construction", "repair_maintenance", "electrical_mechanical"],
+    "preferred_project_types": [
+      "building_construction",
+      "repair_maintenance",
+      "electrical_mechanical"
+    ],
     "max_acceptable_completion_period_days": 200,
-    "_notes": "Broad project-type appetite, generous timeline tolerance — should Select most well-formed tenders. Good 'baseline accepting' profile."
+    "_notes": "Broad project-type appetite, generous timeline tolerance — should Select most well-formed tenders. Good 'baseline accepting' profile.",
+    "company_address": "Plot 45, SITE Area, Hyderabad",
+    "contact_person": "Faisal Memon",
+    "contact_designation": "Managing Partner",
+    "phone": "+92-22-0000107",
+    "email": "info@sindhhorizon.example.com",
+    "ntn_number": "0000107-7"
   },
   {
     "contractor_name": "Gilgit Highlands Contractors",
@@ -123,8 +186,38 @@
     "max_acceptable_payment_cycle_days": 60,
     "is_active_taxpayer": true,
     "years_experience": 1,
-    "preferred_project_types": ["repair_maintenance"],
+    "preferred_project_types": [
+      "repair_maintenance"
+    ],
     "max_acceptable_completion_period_days": 45,
-    "_notes": "Newest, smallest firm — very tight completion-period tolerance. Good test case for the 'timeline too tight' rejection reason specifically."
+    "_notes": "Newest, smallest firm — very tight completion-period tolerance. Good test case for the 'timeline too tight' rejection reason specifically.",
+    "company_address": "Main Bazaar, Jutial, Gilgit",
+    "contact_person": "Karim Baig",
+    "contact_designation": "Proprietor",
+    "phone": "+92-5811-0000108",
+    "email": "gilgit.highlands@example.com",
+    "ntn_number": "0000108-8"
+  },
+  {
+    "contractor_name": "Al-sad Builders (Pvt) Ltd",
+    "pec_category_held": "C-6",
+    "min_contract_value_pkr": 200000.0,
+    "max_contract_value_pkr": 500000.0,
+    "max_bid_security_pkr": 100000.0,
+    "max_acceptable_ld_rate_percent_per_day": 5.0,
+    "max_acceptable_ld_cap_percent": null,
+    "min_required_advance_payment_percent": 3.0,
+    "max_acceptable_payment_cycle_days": null,
+    "is_active_taxpayer": true,
+    "years_experience": 5,
+    "preferred_project_types": [],
+    "max_acceptable_completion_period_days": 100,
+    "company_address": null,
+    "contact_person": null,
+    "contact_designation": null,
+    "phone": null,
+    "email": null,
+    "ntn_number": null,
+    "_mine": true
   }
 ]

@@ -1,0 +1,5 @@
+.env
+__pycache__/
+ocr_*.txt
+Bid_Draft_*.docx
+accuracy_results.json

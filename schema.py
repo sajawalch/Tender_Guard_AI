@@ -90,10 +90,67 @@ class TenderTerms(BaseModel):
     requires_active_taxpayer_status: bool = Field(
         False, description="Whether FBR Active Taxpayer List status is required"
     )
-    min_years_experience_required: Optional[int] = None
+    min_years_experience_required: Optional[int] = Field(
+        None, description="Explicit 'X years of experience' requirement ONLY"
+    )
+    min_similar_contracts: Optional[int] = Field(
+        None, description="e.g. 'at least two contracts of the same nature' -> 2"
+    )
+    similar_contracts_lookback_years: Optional[int] = Field(
+        None, description="e.g. '...completed within ten years' -> 10"
+    )
+    pec_specialization_code: Optional[str] = Field(
+        None, description="e.g. 'CE-10', stated next to the PEC category"
+    )
+    addressee: Optional[str] = Field(
+        None, description="Specific officer/office the bid is addressed to"
+    )
+    required_documents: list[str] = Field(
+        default_factory=list,
+        description="Other documents/eligibility proofs the notice demands (short phrases)",
+    )
+    requirement_items: list[str] = Field(
+        default_factory=list,
+        description="Checklist lines from the notice's eligibility / submission clauses, keeping every "
+                    "number as written. Filled by a second extraction step; each line was checked "
+                    "against the document text. The matching engine never reads this field.",
+    )
 
     completion_period_days: Optional[int] = None
-    bid_closing_date: Optional[str] = Field(None, description="ISO date string")
+    bid_validity_days: Optional[int] = Field(
+        None, description="Number of days a submitted bid must remain valid"
+    )
+    bid_closing_date: Optional[str] = Field(
+        None, description="Bid submission deadline as 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM' (24h)"
+    )
+
+    @property
+    def days_until_deadline(self) -> Optional[int]:
+        """Whole days from today until the bid deadline (negative = already passed).
+        None when no deadline was extracted or it isn't in a recognised format."""
+        if not self.bid_closing_date:
+            return None
+        from datetime import datetime, date
+        for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                closing = datetime.strptime(self.bid_closing_date.strip(), fmt).date()
+                return (closing - date.today()).days
+            except ValueError:
+                continue
+        return None
+
+    @property
+    def deadline_warning(self) -> Optional[str]:
+        """A short warning when the deadline is within a week (or already gone)."""
+        days = self.days_until_deadline
+        if days is None or days > 7:
+            return None
+        when = self.bid_closing_date
+        if days < 0:
+            return f"The bid deadline ({when}) has already passed."
+        if days == 0:
+            return f"Bids close TODAY ({when})."
+        return f"Bids close in {days} day{'s' if days != 1 else ''} ({when})."
 
     source_text_snippets: dict[str, str] = Field(
         default_factory=dict,
@@ -137,6 +194,16 @@ class ContractorCriteria(BaseModel):
         None, description="Reject if the tender's timeline is tighter than this minimum"
     )
 
+    # --- Company details, used only for generating bid documents, not for
+    # matching logic. All optional so existing contractor_profiles.json
+    # entries keep working without these filled in. ---
+    company_address: Optional[str] = None
+    contact_person: Optional[str] = None
+    contact_designation: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    ntn_number: Optional[str] = None
+
 
 class CriterionResult(BaseModel):
     """Result of checking ONE criterion against ONE tender field."""
@@ -153,7 +220,31 @@ class MatchDecision(BaseModel):
     contractor_name: str
     decision: str  # "Select" or "Reject"
     results: list[CriterionResult]
+    total_criteria: int = 0          # how many checks the engine has in total
+    skipped_criteria: list[str] = Field(default_factory=list)  # checks that had no data
 
     @property
     def failing_reasons(self) -> list[str]:
         return [r.reason for r in self.results if not r.passed]
+
+    @property
+    def criteria_checked(self) -> int:
+        return len(self.results)
+
+    @property
+    def is_low_confidence(self) -> bool:
+        """True when fewer than half of the available checks could run —
+        i.e. the tender text didn't state most of what we compare against."""
+        return self.total_criteria > 0 and self.criteria_checked * 2 < self.total_criteria
+
+    @property
+    def confidence_note(self) -> str:
+        """One-line summary shown next to every decision."""
+        base = f"{self.criteria_checked} of {self.total_criteria} criteria checked"
+        if self.skipped_criteria:
+            names = ", ".join(n.replace("_", " ") for n in self.skipped_criteria)
+            base += f" (could not compare: {names} - missing from the tender or from the contractor profile)"
+        if self.is_low_confidence:
+            base += (". LOW CONFIDENCE: most requirements could not be checked, so read "
+                     "the full tender yourself before relying on this decision.")
+        return base

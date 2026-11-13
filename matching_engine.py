@@ -176,10 +176,16 @@ def match(tender: TenderTerms, criteria: ContractorCriteria) -> MatchDecision:
     Rule: ANY failed criterion -> Reject. All applicable criteria pass (or
     were skipped due to missing data) -> Select."""
     results = []
+    skipped = []
     for check_fn in ALL_CHECKS:
         result = check_fn(tender, criteria)
         if result is not None:
             results.append(result)
+        else:
+            # No data on one side (tender didn't state it, or the contractor
+            # set no limit) -> this check could not run. Keep a record so the
+            # user can see how much of the decision is actually evidence-based.
+            skipped.append(check_fn.__name__.replace("check_", "", 1))
 
     decision = "Reject" if any(not r.passed for r in results) else "Select"
 
@@ -188,6 +194,8 @@ def match(tender: TenderTerms, criteria: ContractorCriteria) -> MatchDecision:
         contractor_name=criteria.contractor_name,
         decision=decision,
         results=results,
+        total_criteria=len(ALL_CHECKS),
+        skipped_criteria=skipped,
     )
 
 
