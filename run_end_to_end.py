@@ -138,7 +138,8 @@ def main() -> int:
     d = r.json()
     needed = {"result_id", "decision", "criteria_checked", "criteria_total", "results", "extracted_fields"}
     record("Response has every field the UI needs", needed <= d.keys(), f"missing: {needed - d.keys() or 'none'}")
-    record("Decision is Select or Reject", d["decision"] in ("Select", "Reject"), d["decision"])
+    record("Decision is Select, Reject or Insufficient data",
+           d["decision"] in ("Select", "Reject", "Insufficient data"), d["decision"])
     record("Checks are consistent",
            d["criteria_checked"] == len(d["results"]) and d["criteria_checked"] <= d["criteria_total"],
            f"{d['criteria_checked']} of {d['criteria_total']} run")
@@ -199,4 +200,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-    

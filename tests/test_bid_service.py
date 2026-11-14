@@ -72,3 +72,15 @@ def test_download_name_is_safe_for_any_tender_id(decided):
     _, name = bid_service.build_bid_file(result_id)
     assert name.endswith(".docx")
     assert not any(ch in name for ch in '/\\? ')
+
+
+def test_a_draft_after_insufficient_data_needs_no_confirmation_but_says_nothing_was_checked(make_tender, make_criteria):
+    tender = make_tender(tender_id="T-EMPTY", title="Empty tender")
+    contractor = make_criteria(contractor_name="Alpha Builders")
+    decision = match(tender, contractor)
+    assert decision.decision == "Insufficient data"
+    result_id = bid_service.store_result(tender, contractor, decision)
+    path, _ = bid_service.build_bid_file(result_id)           # no force needed
+    text = doc_text(path)
+    assert "0 of 8 criteria checked" in text
+    assert "NO VERDICT" in text

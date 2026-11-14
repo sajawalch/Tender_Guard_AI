@@ -260,15 +260,35 @@ def test_match_is_deterministic(full_tender, full_criteria):
     assert [r.model_dump() for r in first.results] == [r.model_dump() for r in second.results]
 
 
-def test_nothing_checked_currently_gives_select_with_low_confidence(make_tender, make_criteria):
-    """KNOWN WEAKNESS, documented on purpose: a tender with no readable terms still ends in 'Select',
-    only flagged as low confidence. If you later add an 'Insufficient data' decision, change this test."""
+def test_nothing_checked_is_insufficient_data_not_select(make_tender, make_criteria):
+    """If no check can run, nothing was compared: the tender is neither approved nor rejected."""
     d = match(make_tender(), make_criteria())
-    assert d.decision == "Select"
+    assert d.decision == "Insufficient data"
     assert d.criteria_checked == 0
     assert d.skipped_criteria == SKIPPED_NAMES
     assert d.is_low_confidence
-    assert "LOW CONFIDENCE" in d.confidence_note
+    assert "NO VERDICT" in d.confidence_note
+    assert "Read the full tender yourself" in d.confidence_note
+
+
+def test_insufficient_data_also_when_every_value_is_on_only_one_side(make_tender, make_criteria):
+    """Tender states things the contractor set no limit for, and the contractor has limits the tender never states."""
+    tender = make_tender(bid_security_amount_pkr=1_000_000, liquidated_damages_rate_percent_per_day=0.1)
+    crit = make_criteria(max_acceptable_completion_period_days=120, min_required_advance_payment_percent=10)
+    assert match(tender, crit).decision == "Insufficient data"
+
+
+def test_a_single_passing_check_is_still_a_select_but_low_confidence(make_tender, make_criteria):
+    d = match(make_tender(contract_value_pkr=10_000_000), make_criteria())
+    assert d.decision == "Select"
+    assert d.criteria_checked == 1
+    assert d.is_low_confidence
+    assert "NO VERDICT" not in d.confidence_note
+
+
+def test_a_single_failing_check_is_still_a_reject(make_tender, make_criteria):
+    d = match(make_tender(contract_value_pkr=90_000_000), make_criteria(max_contract_value_pkr=50_000_000))
+    assert d.decision == "Reject"
 
 
 def test_exactly_half_checked_is_not_low_confidence(make_tender, make_criteria):
@@ -289,8 +309,9 @@ def test_fewer_than_half_checked_is_low_confidence(make_tender, make_criteria):
 
 
 def test_skipped_check_never_causes_a_reject(make_tender, make_criteria):
-    """Missing information must not fail a contractor."""
-    d = match(make_tender(liquidated_damages_rate_percent_per_day=5.0), make_criteria())   # contractor set no LD limit
+    """Missing information must not fail a contractor: the contract value passes, the LD check is skipped."""
+    tender = make_tender(contract_value_pkr=10_000_000, liquidated_damages_rate_percent_per_day=5.0)
+    d = match(tender, make_criteria())            # the contractor set no LD limit
     assert d.decision == "Select"
     assert "liquidated_damages" in d.skipped_criteria
 

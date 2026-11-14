@@ -109,6 +109,12 @@ class TenderTerms(BaseModel):
         default_factory=list,
         description="Other documents/eligibility proofs the notice demands (short phrases)",
     )
+    annual_turnover_figure: Optional[str] = Field(
+        default=None,
+        description="The annual-turnover figure exactly as the notice's table writes it for this work "
+                    "(e.g. '12.915'), kept as text because the notice often omits the unit. Verified to "
+                    "occur in the document. Never converted or calculated.",
+    )
     requirement_items: list[str] = Field(
         default_factory=list,
         description="Checklist lines from the notice's eligibility / submission clauses, keeping every "
@@ -218,7 +224,7 @@ class MatchDecision(BaseModel):
     """Final output of the matching engine for one (tender, contractor) pair."""
     tender_id: str
     contractor_name: str
-    decision: str  # "Select" or "Reject"
+    decision: str  # "Select", "Reject" or "Insufficient data" (no check could run)
     results: list[CriterionResult]
     total_criteria: int = 0          # how many checks the engine has in total
     skipped_criteria: list[str] = Field(default_factory=list)  # checks that had no data
@@ -244,7 +250,10 @@ class MatchDecision(BaseModel):
         if self.skipped_criteria:
             names = ", ".join(n.replace("_", " ") for n in self.skipped_criteria)
             base += f" (could not compare: {names} - missing from the tender or from the contractor profile)"
-        if self.is_low_confidence:
+        if self.total_criteria > 0 and self.criteria_checked == 0:
+            base += (". NO VERDICT: nothing could be compared, so this tender is neither approved "
+                     "nor rejected. Read the full tender yourself.")
+        elif self.is_low_confidence:
             base += (". LOW CONFIDENCE: most requirements could not be checked, so read "
                      "the full tender yourself before relying on this decision.")
         return base

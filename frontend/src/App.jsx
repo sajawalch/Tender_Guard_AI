@@ -8,6 +8,7 @@ const LABELS = {
   liquidated_damages: "Liquidated damages",
   advance_payment: "Advance payment",
   active_taxpayer_status: "Active taxpayer status",
+  active_taxpayer: "Active taxpayer status",
   experience: "Experience",
   completion_period: "Completion period",
 };
@@ -380,7 +381,9 @@ export default function App() {
   const selected = contractors.find((c) => c.name === contractor);
   const visible = contractors.filter((c) => c.mine || showDemo || c.name === contractor);
   const hasMine = contractors.some((c) => c.mine);
-  const isSelect = result?.decision === "Select";
+  const verdictKind = result?.decision === "Select" ? "select"
+    : result?.decision === "Reject" ? "reject" : "unknown";   // "unknown" = Insufficient data
+  const isSelect = verdictKind === "select";
   const stepNo = step === "criteria" ? 1 : result ? 3 : 2;
   const STEPS = [
     ["Your criteria", "Set your limits once"],
@@ -576,11 +579,15 @@ export default function App() {
 
             {result && !loading && (
               <section className="result" aria-live="polite">
-                <div className={"verdict " + (isSelect ? "select" : "reject")}>
-                  <span className="stamp" aria-hidden="true">{isSelect ? SYMBOL.pass : SYMBOL.fail}</span>
+                <div className={"verdict " + verdictKind}>
+                  <span className="stamp" aria-hidden="true">
+                    {verdictKind === "select" ? SYMBOL.pass : verdictKind === "reject" ? SYMBOL.fail : "?"}
+                  </span>
                   <div>
                     <p className="v-sub">{result.contractor_name}</p>
-                    <p className="v-word">{result.decision}</p>
+                    <p className={"v-word" + (verdictKind === "unknown" ? " long" : "")}>
+                      {verdictKind === "unknown" ? "Not enough data" : result.decision}
+                    </p>
                     <p className="v-sub">{result.tender_title}</p>
                   </div>
                   <p className="v-count"><b>{result.criteria_checked}</b> of {result.criteria_total}<span>checks run</span></p>
@@ -591,7 +598,12 @@ export default function App() {
                 {result.deadline_warning && (
                   <p className="msg warn"><strong>Deadline.</strong> {result.deadline_warning}</p>
                 )}
-                {result.low_confidence && (
+                {verdictKind === "unknown" && (
+                  <p className="msg warn"><strong>No verdict.</strong> Nothing could be compared, so this
+                    tender is neither a Select nor a Reject. The document gave none of the values the checks
+                    need, or your criteria have no limits for them. Read the full tender yourself.</p>
+                )}
+                {result.low_confidence && verdictKind !== "unknown" && (
                   <p className="msg warn"><strong>Low confidence.</strong> Most requirements could not be
                     checked. Read the full tender yourself before relying on this result.</p>
                 )}

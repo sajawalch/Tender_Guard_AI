@@ -152,6 +152,24 @@ def test_decide_returns_everything_the_ui_needs(client, pipeline):
     assert d["criteria_checked"] == len(d["results"])
 
 
+def test_decide_says_insufficient_data_when_nothing_could_be_compared(client, pipeline, make_tender):
+    pipeline["tender"] = make_tender(tender_id="T-EMPTY", title="Empty tender")
+    d = upload(client).json()
+    assert d["decision"] == "Insufficient data"
+    assert d["results"] == []
+    assert d["criteria_checked"] == 0
+    assert d["low_confidence"] is True
+    assert "NO VERDICT" in d["confidence_note"]
+
+
+def test_a_draft_can_still_be_made_when_there_was_no_verdict(client, pipeline, make_tender):
+    pipeline["tender"] = make_tender(tender_id="T-EMPTY", title="Empty tender")
+    result_id = upload(client).json()["result_id"]
+    r = client.post("/api/generate-bid", json={"result_id": result_id})      # no 'force' needed
+    assert r.status_code == 200
+    assert r.content[:2] == b"PK"
+
+
 def test_decide_rejects_an_oversized_contract(client, pipeline, make_tender):
     pipeline["tender"] = make_tender(tender_id="T-BIG", title="Big", contract_value_pkr=90_000_000)
     d = upload(client).json()

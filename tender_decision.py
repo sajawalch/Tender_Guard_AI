@@ -52,7 +52,8 @@ def print_decision(tender_title: str, contractor_name: str, decision):
     print(f"CONTRACTOR:  {contractor_name}")
     print(f"{bar}")
 
-    verdict_symbol = "\u2705 SELECT" if decision.decision == "Select" else "\u274c REJECT"
+    verdict_symbol = {"Select": "\u2705 SELECT", "Reject": "\u274c REJECT"}.get(
+        decision.decision, "\u2753 NOT ENOUGH DATA (no verdict)")
     print(f"\n  DECISION: {verdict_symbol}\n")
 
     if not decision.results:
