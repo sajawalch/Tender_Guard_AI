@@ -174,6 +174,44 @@ def test_similarity_rule_merges_rewordings_but_not_different_requirements():
                                  "Income Tax Returns for the last three years")
 
 
+# ---------------------------------------------------------------- turnover figure from the notice's table
+
+TURNOVER_LINE = "Have an Average Annual Turnover half time of the amount mentioned against this work during last three (03) years."
+
+
+def turnover_lines(tender):
+    return [i for i in build_document_checklist(tender) if "turnover" in i.lower()]
+
+
+def test_table_figure_is_added_to_the_turnover_requirement(make_tender):
+    (line,) = turnover_lines(make_tender(annual_turnover_figure="12.915", requirement_items=[TURNOVER_LINE]))
+    assert line.startswith("Have an Average Annual Turnover half time")      # the notice's own words stay
+    assert "12.915" in line and "unit not stated" in line
+    assert line.count("12.915") == 1
+
+
+def test_figure_is_not_added_twice_when_the_line_already_has_it(make_tender):
+    already = "Average annual turnover of 12.915 for the last three (03) years, certified from audited financial statement"
+    (line,) = turnover_lines(make_tender(annual_turnover_figure="12.915", requirement_items=[already]))
+    assert line == already
+
+
+def test_turnover_line_is_created_when_the_notice_wording_was_missed(make_tender):
+    (line,) = turnover_lines(make_tender(annual_turnover_figure="12.915"))
+    assert "12.915" in line and "unit not stated" in line
+
+
+def test_a_unit_the_notice_wrote_is_not_contradicted(make_tender):
+    (line,) = turnover_lines(make_tender(annual_turnover_figure="12.915 million", requirement_items=[TURNOVER_LINE]))
+    assert "12.915 million" in line
+    assert "unit not stated" not in line
+
+
+def test_no_figure_leaves_the_turnover_line_as_the_notice_wrote_it(make_tender):
+    assert turnover_lines(make_tender(requirement_items=[TURNOVER_LINE])) == [TURNOVER_LINE]
+    assert turnover_lines(make_tender()) == []
+
+
 # ---------------------------------------------------------------- date formatting
 
 @pytest.mark.parametrize("raw,expected", [
@@ -212,6 +250,15 @@ def test_first_page_is_a_cover_page_for_the_contractor_only(built):
     assert any(p.startswith("Issues flagged by the automated check.") for p in text)
     assert any("exceeds your maximum" in p for p in text)
     assert 'w:type="page"' in Document(str(built)).element.xml
+
+
+def test_cover_page_warns_that_the_checklist_is_ai_made_and_may_miss_conditions(built):
+    text = paragraphs(built)
+    warning = next(p for p in text if p.startswith("This checklist was produced by AI"))
+    assert "leave out conditions" in warning
+    assert "differ from one run to the next" in warning
+    assert "bid security" in warning
+    assert text.index(warning) < text.index("Sindh Horizon Builders")        # on the cover page, not in the letter
 
 
 def test_warnings_come_before_the_letter_not_inside_it(built):

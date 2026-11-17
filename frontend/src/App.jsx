@@ -22,6 +22,7 @@ const FIELD_ROWS = [
   ["liquidated_damages_rate_percent_per_day", "Liquidated damages (% per day)", ""],
   ["advance_payment_percent", "Advance payment (%)", "pct"],
   ["min_years_experience_required", "Experience required (years)", ""],
+  ["annual_turnover_figure", "Annual turnover figure (as written in the notice)", ""],
   ["bid_closing_date", "Bid closing date", ""],
 ];
 

@@ -9,7 +9,7 @@ import pytest
 
 from schema import PECCategory
 from extract_tender import (extract_fields_with_llm, extract_text_from_document,
-                            sanitize_amounts, verify_requirements)
+                            sanitize_amounts, uncovered_clauses, verify_requirements)
 
 
 @pytest.fixture
@@ -290,3 +290,67 @@ def test_quote_matching_ignores_spacing_case_and_punctuation():
                 "evidence": "ALL SAFETY  instructions narrated in\nNEPRA Safety Code must be adopted in true letter and spirit"}
     kept, dropped = verify_requirements([reflowed], NOTICE)
     assert len(kept) == 1 and dropped == 0
+
+
+# ---------------------------------------------------------------- the turnover figure from the notice's table
+
+@pytest.mark.parametrize("claimed,expected", [
+    ("12.915", "12.915"),
+    (12.915, "12.915"),
+    ("12.915 million", "12.915"),       # the notice never writes a unit, so the model's "million" is dropped
+    ("12,915,000", None),               # a converted figure is not in the document
+    ("twelve", None),
+    (None, None),
+    (True, None),
+])
+def test_turnover_figure_is_kept_only_as_the_document_writes_it(llm, claimed, expected):
+    llm["payload"] = {"annual_turnover_figure": claimed}
+    assert run(text=NOTICE).annual_turnover_figure == expected
+
+
+def test_a_unit_the_document_really_writes_is_kept(llm):
+    llm["payload"] = {"annual_turnover_figure": "12.915 million"}
+    assert run(text=NOTICE + "Annual Turnover 12.915 million").annual_turnover_figure == "12.915 million"
+
+
+def test_turnover_figure_defaults_to_not_stated(llm):
+    assert run(text=NOTICE).annual_turnover_figure is None
+
+
+# ---------------------------------------------------------------- finding what the model left out
+
+CLAUSES = (
+    "5. Eligibility:\n"
+    "a) The bidder must provide the Income Tax Returns for last three (03) years.\n"
+    "b) All safety instructions narrated in NEPRA Safety Code must be adopted in true letter\n"
+    "and spirit.\n"
+    "c) The Procuring Agency may reject any bid or cancel the process.\n"
+    "d) Bidder shall demonstrate cash or cash equivalents to 10% of contract value and current contract\n"
+    "commitment.\n"
+)
+
+
+def test_a_clause_no_line_cites_is_reported():
+    cited = ["All safety instructions narrated in NEPRA Safety Code must be adopted in true letter and spirit."]
+    missing = uncovered_clauses(CLAUSES, cited)
+    assert len(missing) == 2
+    assert missing[0].startswith("a) The bidder must provide the Income Tax Returns")
+    assert missing[1].startswith("d) Bidder shall demonstrate cash")
+
+
+def test_clauses_without_an_obligation_are_not_reported():
+    assert not any("Procuring Agency" in c for c in uncovered_clauses(CLAUSES, []))
+
+
+def test_nothing_is_reported_when_every_obligation_is_cited():
+    cited = ["The bidder must provide the Income Tax Returns for last three (03) years.",
+             "All safety instructions narrated in NEPRA Safety Code must be adopted in true letter and spirit.",
+             "Bidder shall demonstrate cash or cash equivalents to 10% of contract value and current contract commitment."]
+    assert uncovered_clauses(CLAUSES, cited) == []
+
+
+def test_the_checklist_prompt_asks_for_every_clause_and_forbids_dropping_conditions():
+    from extract_tender import REQUIREMENTS_SYSTEM_PROMPT as prompt
+    assert "clause by clause" in prompt
+    assert "never shorten a clause" in prompt.lower()
+    assert "current contract commitment" in prompt

@@ -177,6 +177,7 @@ Maintenance of Office of Chief Engineer ..."), NOT the department letterhead, or
   "pec_specialization_code": string or null,
   "addressee": string or null,
   "required_documents": [list of short strings, or an empty list],
+  "annual_turnover_figure": string or null,
   "completion_period_days": integer or null,
   "bid_validity_days": integer or null,
   "bid_closing_date": "YYYY-MM-DD HH:MM" (24-hour) or "YYYY-MM-DD" if no time is stated, or null,
@@ -206,6 +207,7 @@ category (e.g. "CE-10"), or null.
 - addressee: the specific officer or office the bid is submitted to, or the bid \
 security is payable in favour of (e.g. "Executive Engineer, Civil Works Division, \
 <utility>, <city>"), or null.
+- annual_turnover_figure: when the notice requires an annual turnover and gives the figure in the row of THE SPECIFIC TENDER (a table column such as "Annual Turnover", often referred to in the clauses as "the amount mentioned against this work"), copy that figure exactly as written, as text (e.g. "12.915"). Add a unit ONLY if the document writes one next to it. NEVER convert units, halve, round or calculate it. If no such figure is given, use null.
 - required_documents: one short phrase per ADDITIONAL document or eligibility proof \
 the notice requires from bidders. Work through the notice's eligibility / \
 qualification list ITEM BY ITEM (a, b, c, ... or 1, 2, 3, ...) and include EVERY \
@@ -370,14 +372,15 @@ it. Never calculate, convert units, round, add up or invent a number. If a claus
 elsewhere (for example "the amount mentioned against this work" pointing to a table column), copy that \
 figure as written in the row of THE SPECIFIC TENDER and say where it comes from. If its unit is not stated, \
 write "unit not stated" instead of guessing "million".
-3. One requirement per item, as one short plain sentence. Do not merge different requirements.
+3. One requirement per item, as one short plain sentence that keeps the requirement's qualifiers (for example "certified from audited financial statement", the number of years, "original"). Do not merge different requirements.
 4. "evidence" must be copied word for word from the document: the sentence or clause that states the \
 requirement (at most 300 characters). Do not fix its spelling or wording.
-5. Leave out general information, contact details, bid-opening arrangements, grievance committees, and \
+5. Go through the notice clause by clause, in order (1, 2, 3 ... and a, b, c ...). Every clause that places an obligation on the bidder must produce at least one item. Never skip a clause because it resembles another one, and never shorten a clause by dropping its conditions, recipients, places, dates, times or amounts (for example "and current contract commitment", "of any scheduled bank of Pakistan", "to the opening committee on 03-11-2026 upto 11.30 AM").
+6. Leave out general information, contact details, bid-opening arrangements, grievance committees, and \
 the procuring agency's right to reject bids.
-6. If the document lists several tenders, use only the requirements that apply to the tender named in \
+7. If the document lists several tenders, use only the requirements that apply to the tender named in \
 the user message.
-7. If the document states no such requirements, answer {"requirements": []}.
+8. If the document states no such requirements, answer {"requirements": []}.
 """
 
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)*(?::\d+)?")
@@ -389,6 +392,19 @@ def _compact(text: str) -> str:
 
 def _numbers(text: str) -> set[str]:
     return {m.replace(",", "") for m in _NUMBER.findall(text)}
+
+
+def _verified_figure(value, source_text: str) -> str | None:
+    """Keep a figure the model copied from the document only if its numbers really occur in the document."""
+    if value is None or isinstance(value, bool):
+        return None
+    figure = str(value).strip()
+    numbers = _numbers(figure)
+    if not numbers or not numbers <= _numbers(source_text):
+        return None
+    if _compact(figure) in _compact(source_text):
+        return figure                      # exactly as the document writes it, unit included
+    return _NUMBER.search(figure).group(0)  # the unit was added by the model: keep only the number
 
 
 def extract_requirements(text_for_model: str, title: str) -> list:
@@ -432,6 +448,27 @@ def verify_requirements(items: list, source_text: str) -> tuple[list[dict], int]
     return kept, dropped
 
 
+_CLAUSE_START = re.compile(r"(?m)^[ \t]*\(?(?:\d{1,2}|[A-Za-z])[.)][ \t]+(?=\S)")
+_OBLIGATION = re.compile(r"\b(must|shall|should|required|accompanied|submit|provide|demonstrate)\b", re.I)
+
+
+def uncovered_clauses(source_text: str, evidences: list[str]) -> list[str]:
+    """Numbered / lettered clauses of the notice that place an obligation on the bidder but are not
+    cited by any checklist line. A way to SEE what the model left out; it changes nothing."""
+    starts = [m.start() for m in _CLAUSE_START.finditer(source_text)]
+    cited = [_compact(ev) for ev in evidences if _compact(ev)]
+    missing = []
+    for i, start in enumerate(starts):
+        end = starts[i + 1] if i + 1 < len(starts) else len(source_text)
+        clause = " ".join(source_text[start:end].split())
+        compact = _compact(clause)
+        if len(compact) < 25 or not _OBLIGATION.search(clause):
+            continue
+        if not any(c in compact or compact[:30] in c for c in cited):
+            missing.append(clause)
+    return missing
+
+
 def _attach_requirements(terms: TenderTerms, raw_text: str, text_for_model: str, title: str) -> None:
     """Fills terms.requirement_items. A failure here never breaks the decision: the matching engine
     does not use these lines, so we warn and carry on without them."""
@@ -447,6 +484,10 @@ def _attach_requirements(terms: TenderTerms, raw_text: str, text_for_model: str,
     if dropped:
         print(f"note: {dropped} requirement line(s) were dropped because the document does not support them",
               file=sys.stderr)
+    left_out = uncovered_clauses(raw_text, [k["evidence"] for k in kept])
+    if left_out:
+        print(f"note: {len(left_out)} clause(s) place an obligation on the bidder but no checklist line cites "
+              f"them, e.g. \"{left_out[0][:90]}\"", file=sys.stderr)
 
 
 def extract_fields_with_llm(raw_text: str, tender_id: str, title: str,
@@ -507,6 +548,8 @@ def extract_fields_with_llm(raw_text: str, tender_id: str, title: str,
     for code_field in ("pec_specialization_code", "addressee"):
         if extracted.get(code_field) is not None:
             extracted[code_field] = str(extracted[code_field]).strip() or None
+
+    extracted["annual_turnover_figure"] = _verified_figure(extracted.get("annual_turnover_figure"), raw_text)
 
     extracted_org = extracted.pop("organization", None)
     extracted_title = extracted.pop("project_title", None)

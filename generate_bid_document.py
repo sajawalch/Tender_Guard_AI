@@ -155,6 +155,18 @@ def build_document_checklist(tender: TenderTerms) -> list[str]:
             continue
         add(item, topic)
 
+    # The notice often says "half of the amount mentioned against this work" and gives the figure only in
+    # its table. Put that figure, as written, next to the turnover requirement (never converted or halved).
+    figure = (getattr(tender, "annual_turnover_figure", None) or "").strip()
+    if figure:
+        unit_note = "" if re.search(r"[A-Za-z]", figure) else "; unit not stated"
+        note = f"figure stated against this work in the notice: {figure}{unit_note}"
+        turnover = next((e for e in entries if re.search(r"turnover", e["text"], re.I)), None)
+        if turnover is None:
+            add(f"Average annual turnover ({note})")
+        elif figure not in turnover["text"]:
+            turnover["text"] = f"{turnover['text'].rstrip('. ')} ({note})."
+
     # These are always sensible to include regardless of what was extracted
     for basic in ("Company registration / incorporation certificate",
                   "National Tax Number (NTN) certificate",
@@ -197,6 +209,10 @@ def _add_cover_page(doc, tender: TenderTerms, failed_checks, confidence_note) ->
     todo = doc.add_paragraph()
     todo.add_run("Before you submit").bold = True
     for item in (
+        "This checklist was produced by AI from the notice's text. It may leave out conditions and can "
+        "differ from one run to the next. Read the notice's own clauses yourself before relying on it, "
+        "especially those on bid security (who it is payable to, which bank, how long it stays valid), "
+        "turnover and other financial requirements.",
         "Enter your bid amount in figures and in words in the letter, and fill in the price "
         "schedule. TenderGuard AI does not set prices.",
         "Enter the date of submission in the letter.",

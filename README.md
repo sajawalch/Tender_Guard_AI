@@ -1,91 +1,138 @@
-# TenderGuard AI — Starter Kit
+# TenderGuard AI
 
-This is the working skeleton for Weeks 1–3 of your build. It's not a finished
-app — it's the schema, logic, and sample data that everything else gets built
-on top of, already wired together and sanity-checked.
+A bid / no-bid screening tool for small and mid-sized **Pakistani construction contractors**.
 
-## What's in here
+A contractor saves their own limits once (PEC licence category, contract-value range, the most bid
+security they can afford, tax status, penalty tolerance, ...). They then upload a tender PDF and get
+**Select, Reject or Insufficient data, with a reason for every check**, a note on how much could be
+checked, a deadline warning, and an optional **draft bid document** (.docx) to complete.
 
-| File | What it is | Status |
-|---|---|---|
-| `schema.py` | Pydantic models: `TenderTerms`, `ContractorCriteria`, `MatchDecision` | **Done** — defines every field your system works with |
-| `matching_engine.py` | Rule-based Select/Reject logic | **Done** — 8 criteria checks, deterministic, with a built-in smoke test |
-| `contractor_profiles.json` | 8 fictional contractor profiles | **Done** — spans C-6 to C-1 PEC categories, different risk appetites |
-| `ground_truth_tenders.json` | Your 10 real PPRA tenders, pre-filled with confirmed data | **Partial** — see "What you still need to do" below |
-| `extract_tender.py` | PDF-to-text + LLM extraction pipeline | **Done, untested** — needs your API key and real PDFs to run |
+It does one decision reliably and transparently. It is not a general tender summariser.
 
-## What you still need to do
+## How it works
 
-**1. Download the actual 10 PDFs.**
-I could only read PPRA's *summary* pages for your tenders (organization, bid
-security where stated, closing dates) — not the full document text inside
-each PDF, since I have no way to save binary files in this environment. Use
-the links from your `PPRA_Construction_Tenders_Batch1.md` file to download
-all 10 PDFs into a local `tenders/` folder.
-
-**2. Fill in the missing ground-truth fields, by hand, from the real PDFs.**
-Open each PDF and manually find: contract value, PEC category required,
-liquidated damages rate, advance payment %, completion period. Fill these
-into `ground_truth_tenders.json` wherever you see `null` and a
-`needs_pdf_review` list. **This step cannot be skipped or automated** — it's
-what lets you later measure your extraction accuracy honestly, by comparing
-the LLM's output against what you know is actually correct.
-
-One tender (`TS0000015708E`) already has confirmed data —
-`requires_active_taxpayer_status: true` — straight from PPRA's own summary
-text, so you have at least one fully-anchored example to start with.
-
-**3. Install dependencies locally (this sandbox has no internet access).**
-```bash
-pip install pymupdf pdfplumber pydantic openai
 ```
-(If you'd rather use Claude instead of ChatGPT, install `anthropic` instead of
-`openai`, and set `LLM_PROVIDER=anthropic` — see step 4.)
-
-**4. Set your API key and test the extraction pipeline.**
-Using your existing OpenAI/ChatGPT key (default, no extra setup needed):
-```bash
-export OPENAI_API_KEY=your_key_here
-python extract_tender.py sample_tender_ST-2026-001.txt ST-2026-001 "Construction of Staff Residential Quarters"
+tender PDF -> read text (PyMuPDF -> pdfplumber -> OCR fallback)
+           -> LLM step 1: extract the tender's terms into a fixed schema (literal, temperature 0)
+           -> LLM step 2: list the bidder's requirements, each with a quote from the document
+contractor limits + tender terms -> matching_engine.match()  (plain Python rules, no LLM)
+                                 -> Select / Reject / Insufficient data + reasons
+                                 -> draft bid .docx
 ```
-Or, if you switch to an Anthropic key later:
-```bash
-export ANTHROPIC_API_KEY=your_key_here
-export LLM_PROVIDER=anthropic
-python extract_tender.py sample_tender_ST-2026-001.txt ST-2026-001 "Construction of Staff Residential Quarters"
+
+The language model only **reads documents**. It never makes the decision.
+
+- A check runs only when **both** the tender and the contractor's profile give a value. Otherwise it
+  is skipped and listed in the coverage note ("5 of 8 criteria checked"). A skipped check never rejects.
+- **Reject** = any check failed. **Select** = at least one check ran and none failed.
+  **Insufficient data** = no check could run, so nothing was compared. It is neither approved nor rejected.
+- A value the document does not state is `null`, never guessed. A bid security given only as a percentage is
+  worked out by the matcher from the contract value; the extractor never calculates it.
+- The 8 checks: contract value, PEC category, bid security, liquidated damages, advance payment,
+  active taxpayer status, experience, completion period.
+
+## Known limits (read this before relying on a result)
+
+**The requirements checklist is made by AI and is not guaranteed complete.**
+It can differ from one run to the next, and it does not catch every condition of a tender. Each line is
+checked against the document (the quote must occur in the text and every number must occur in the text),
+which stops invented lines, but **it cannot detect a line that was left out**. In testing, a run once
+produced a bid-security line without the bank and the validity period that the notice states. The backend
+prints a note when clauses with an obligation are not cited by any line, but the only safe rule is:
+**always read the notice's own clauses.** Figures that appear only in the notice's table (for example the
+turnover amount) may be missing from the checklist.
+
+Other limits:
+
+- **No financial eligibility checks yet.** Turnover, liquid cash and the value of past contracts are not
+  compared, so a **Select** can still fail on them.
+- **The decision is only as good as the extraction.** On real tenders, extraction is weaker than on
+  synthetic ones, especially for scanned pages, very long documents and tables with several lots.
+- Documents longer than 60,000 characters are cut before they reach the model. The result screen warns when this happens.
+- **The draft bid is a draft.** It is a generic bid letter, not the official format of a particular bidding
+  document. Prices, certificates and the bid security are always the contractor's own job, and the
+  declaration must only be signed after the contractor has checked every requirement.
+- Results are kept in memory only (lost when the server restarts). There is no database and no login.
+- The tender text is sent to OpenAI for extraction. Do not upload documents you are not allowed to share.
+- This is a screening aid, not legal or financial advice.
+
+## Accuracy
+
+Last measured (`accuracy.py`, before the latest extraction changes; **not re-measured since**):
+
+| Set | Result |
+|---|---|
+| Synthetic tenders (6 tenders, all answers known) | 65 of 66 fields (98.5%) |
+| Real PPRA tenders (7 tenders, hand-confirmed fields only) | 8 of 14 fields (57.1%) |
+
+The two sets are reported separately on purpose, and failed extractions are counted, not hidden. The
+matching engine and the bid-document builder are tested separately and offline (see Tests).
+
+## Setup (Windows PowerShell)
+
+```powershell
+conda activate tenderguard
+pip install -r requirements.txt
+$env:OPENAI_API_KEY="your_key"        # never put a key in code, in .env that is committed, or in a zip
 ```
-Once that works on the sample `.txt` file, move on to a real PDF:
-```bash
-python extract_tender.py tenders/TS0000016176E.pdf TS0000016176E "Construction of 06 No. Cat-IV Flats"
+
+Scanned PDFs need Tesseract OCR installed separately (a Windows installer).
+
+Run the web app (two terminals):
+
+```powershell
+# terminal 1, project folder
+uvicorn api_server:app --reload
+
+# terminal 2
+cd frontend
+npm install
+npm run dev
 ```
-Compare its output field-by-field against what you filled into
-`ground_truth_tenders.json` for that tender.
 
-**5. Run the matching engine smoke test.**
-```bash
-python matching_engine.py
+Open http://localhost:5173, set your criteria, upload a tender, read the result.
+
+Command-line tools:
+
+```powershell
+python tender_decision.py tenders\TS0000016176E.pdf "Sindh Horizon Builders"   # decision only
+python generate_bid.py tenders\TS0000016176E.pdf "Sindh Horizon Builders"       # draft bid .docx
+python run_end_to_end.py tenders\TS0000016176E.pdf --firm "Sindh Horizon Builders"   # whole web flow, no browser
+python diagnose_checklist.py tenders\TS0000016176E.pdf "Project title"          # why the checklist looks as it does
+python check_connection.py                                                        # diagnose the OpenAI connection
 ```
-This runs against hardcoded dummy data to confirm the logic itself works —
-you should see a `Decision: Select` or `Decision: Reject` with reasons
-printed. Once step 2 is done, swap the dummy data for your real ground truth.
 
-## A note on honesty in what's pre-filled
+## Tests
 
-Every field in `ground_truth_tenders.json` that I populated is something I
-actually confirmed from PPRA's website (bid security amounts, organizations,
-closing dates, and the one explicit PEC/FBR requirement). Every field marked
-`null` with a `needs_pdf_review` tag is something I do **not** have — I did
-not fabricate contract values, LD rates, or PEC categories for fields the
-summary pages didn't show. Trust the `null`s; they're accurate, not missing
-laziness.
+All tests run offline: no internet, no API key, no real PDFs.
 
-## Suggested order to keep building
+```powershell
+pip install pytest httpx
+python -m pytest
+```
 
-1. Finish step 1–2 above (download PDFs, fill ground truth) — do this before
-   writing more code.
-2. Get `extract_tender.py` working end-to-end on 2–3 real tenders, compare to
-   ground truth, fix the prompt if accuracy is poor.
-3. Once extraction is solid, run it across all 10 + your synthetic tenders,
-   and start building the Streamlit interface around `schema.py` and
-   `matching_engine.py` — both are already interface-agnostic, so the web
-   app just becomes a thin layer on top of what's here.
+They cover the matching engine (every check, boundaries, skip rules, the three outcomes), the schema and
+deadline logic, extraction post-processing with a fake model, the checklist and the draft document, the
+result cache and the API.
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `schema.py` | `TenderTerms`, `ContractorCriteria`, `MatchDecision`, PEC category ranking |
+| `matching_engine.py` | The 8 rule checks and `match()`. No LLM here, by design |
+| `extract_tender.py` | PDF / OCR reading, the extraction prompts, checks on the model's answers |
+| `generate_bid_document.py` | Builds the draft .docx (cover page, letter, summary, price schedule, checklist, declaration) |
+| `bid_service.py` | In-memory result cache and .docx building for the web app |
+| `api_server.py` | FastAPI backend: contractors, decide, generate-bid |
+| `frontend/` | React 18 + Vite web app |
+| `contractor_profiles.json` | Firm profiles (8 fictional demo firms plus any you create) |
+| `ground_truth_tenders.json`, `synthetic_*` | Answers used to measure extraction accuracy |
+| `tests/` | The pytest suite |
+
+## Rules this project keeps
+
+- Matching stays deterministic: no LLM calls inside `matching_engine.py` (a test enforces this).
+- Extraction stays literal: if the document does not state it, it is `null`.
+- Amounts are full rupees. Impossible values (under PKR 1,000) become `null`.
+- Accuracy is reported honestly, synthetic and real separately.
