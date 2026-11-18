@@ -1,5 +1,20 @@
+# secrets: never commit these
 .env
+.env.*
+!.env.example
+
+# python
 __pycache__/
-ocr_*.txt
+*.pyc
+.pytest_cache/
+
+# node
+node_modules/
+frontend/dist/
+
+# generated files
+e2e_output/
+extracted_cache/
 Bid_Draft_*.docx
+ocr_*.txt
 accuracy_results.json

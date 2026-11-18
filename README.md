@@ -47,7 +47,7 @@ Other limits:
 - **No financial eligibility checks yet.** Turnover, liquid cash and the value of past contracts are not
   compared, so a **Select** can still fail on them.
 - **The decision is only as good as the extraction.** On real tenders, extraction is weaker than on
-  synthetic ones, especially for scanned pages, very long documents and tables with several lots.
+  synthetic ones (see Accuracy), especially for scanned pages, very long documents and tables with several lots.
 - Documents longer than 60,000 characters are cut before they reach the model. The result screen warns when this happens.
 - **The draft bid is a draft.** It is a generic bid letter, not the official format of a particular bidding
   document. Prices, certificates and the bid security are always the contractor's own job, and the
@@ -58,15 +58,25 @@ Other limits:
 
 ## Accuracy
 
-Last measured (`accuracy.py`, before the latest extraction changes; **not re-measured since**):
+Measured with `accuracy.py` on the current extraction code. Both sets are reported separately on purpose, and
+failed extractions are counted, not hidden.
 
 | Set | Result |
 |---|---|
-| Synthetic tenders (6 tenders, all answers known) | 65 of 66 fields (98.5%) |
+| Synthetic tenders (15 written tenders, every field has a known answer) | 163 of 165 fields (98.8%) |
 | Real PPRA tenders (7 tenders, hand-confirmed fields only) | 8 of 14 fields (57.1%) |
 
-The two sets are reported separately on purpose, and failed extractions are counted, not hidden. The
-matching engine and the bid-document builder are tested separately and offline (see Tests).
+How to read these numbers:
+
+- **The real-tender figure rests on only 14 fields**, because most fields of the real tenders have not been confirmed
+  by hand (they are skipped, never counted as right or wrong). One field moves the figure by about 7 points. Read it as
+  "extraction on real tenders is clearly weaker than on clean written ones", not as a precise rate.
+- Only the **structured fields** the matching engine compares are scored. The requirements checklist lines and the
+  turnover figure are **not** scored, and the checklist is not guaranteed complete (see Known limits).
+- Real tenders are harder: scanned pages, very long documents, notices that bundle several tenders, and tables where a
+  bid-security figure can be mistaken for the contract value.
+
+The matching engine and the bid-document builder are tested separately and offline (see Tests).
 
 ## Setup (Windows PowerShell)
 
@@ -99,8 +109,13 @@ python tender_decision.py tenders\TS0000016176E.pdf "Sindh Horizon Builders"   #
 python generate_bid.py tenders\TS0000016176E.pdf "Sindh Horizon Builders"       # draft bid .docx
 python run_end_to_end.py tenders\TS0000016176E.pdf --firm "Sindh Horizon Builders"   # whole web flow, no browser
 python diagnose_checklist.py tenders\TS0000016176E.pdf "Project title"          # why the checklist looks as it does
+python check_all_tenders.py --firm "Your Firm"                                    # every tender in tenders\ against one firm
 python check_connection.py                                                        # diagnose the OpenAI connection
 ```
+
+## Try it without a real PDF
+
+`demo_tenders\` holds short written tenders and `DEMO.md` lists which firm to use with which one, and the result to expect.
 
 ## Tests
 
@@ -110,6 +125,8 @@ All tests run offline: no internet, no API key, no real PDFs.
 pip install pytest httpx
 python -m pytest
 ```
+
+GitHub Actions runs the same tests (and builds the frontend) on every push; see `.github/workflows/tests.yml`.
 
 They cover the matching engine (every check, boundaries, skip rules, the three outcomes), the schema and
 deadline logic, extraction post-processing with a fake model, the checklist and the draft document, the
@@ -129,6 +146,8 @@ result cache and the API.
 | `contractor_profiles.json` | Firm profiles (8 fictional demo firms plus any you create) |
 | `ground_truth_tenders.json`, `synthetic_*` | Answers used to measure extraction accuracy |
 | `tests/` | The pytest suite |
+| `demo_tenders/`, `DEMO.md` | Written tenders and a script for a 5-minute demo |
+| `.github/workflows/tests.yml` | Runs the tests on every push |
 
 ## Rules this project keeps
 

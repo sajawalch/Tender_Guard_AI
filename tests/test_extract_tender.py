@@ -9,7 +9,8 @@ import pytest
 
 from schema import PECCategory
 from extract_tender import (extract_fields_with_llm, extract_text_from_document,
-                            sanitize_amounts, uncovered_clauses, verify_requirements)
+                            _only_near_bid_security, sanitize_amounts, uncovered_clauses,
+                            verify_requirements)
 
 
 @pytest.fixture
@@ -354,3 +355,49 @@ def test_the_checklist_prompt_asks_for_every_clause_and_forbids_dropping_conditi
     assert "clause by clause" in prompt
     assert "never shorten a clause" in prompt.lower()
     assert "current contract commitment" in prompt
+
+
+# ---------------------------------------------------------------- bid security figure mistaken for the contract value
+
+JOBS_TABLE = (
+    "Job     Delivery Schedule     Quantity     Bid Security\n"
+    "Repair / Maintenance of Family Suites No. H-310 at Parliament Lodges, Islamabad     "
+    "Schedule: 27 Days     1868/Qty     127047 PKR\n"
+)
+
+
+def test_the_prompt_says_a_bid_security_column_is_never_the_contract_value():
+    from extract_tender import EXTRACTION_SYSTEM_PROMPT as prompt
+    assert 'under a column or label called "Bid Security"' in prompt
+    assert "NEVER in contract_value_pkr" in prompt
+
+
+def test_a_number_that_only_appears_under_the_bid_security_heading_is_flagged():
+    assert _only_near_bid_security(127_047, JOBS_TABLE)
+    assert _only_near_bid_security(127_047.0, JOBS_TABLE)
+
+
+def test_a_number_that_also_appears_elsewhere_is_not_flagged():
+    text = "Estimated cost of the work: PKR 127,047.\n" + "x" * 400 + "\n" + JOBS_TABLE
+    assert not _only_near_bid_security(127_047, text)
+
+
+@pytest.mark.parametrize("value", [None, True, "127047", 999_999_999])
+def test_no_warning_without_a_usable_number_or_when_it_is_not_in_the_text(value):
+    assert not _only_near_bid_security(value, JOBS_TABLE)
+
+
+def test_the_contract_value_is_still_kept_and_the_warning_does_not_change_it(llm):
+    llm["payload"] = {"contract_value_pkr": 127_047}
+    assert run(text=JOBS_TABLE).contract_value_pkr == 127_047      # the warning is only a message
+
+
+def test_a_table_with_both_a_cost_column_and_a_bid_security_column_does_not_flag_the_cost():
+    table = ("No. Name of Work BOQ Cost Bid Security (5% of BOQ cost) Completion\n"
+             "13 Construction of 06 Flats 25831313.00 1291566.00 210 Days\n")
+    assert not _only_near_bid_security(25_831_313, table)
+
+
+def test_the_closest_label_decides():
+    assert _only_near_bid_security(127_047, "Estimated cost not stated. Bid Security 127047 PKR")
+    assert not _only_near_bid_security(127_047, "Bid Security is described elsewhere. Estimated cost 127047 PKR")

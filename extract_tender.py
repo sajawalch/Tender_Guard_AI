@@ -192,6 +192,7 @@ Rules:
 in bid_security_percent and leave bid_security_amount_pkr null. NEVER calculate an \
 amount yourself by multiplying a percentage by the contract value — only fill \
 bid_security_amount_pkr when the document itself states a rupee figure.
+- A rupee figure that the document places under a column or label called "Bid Security" (for example a table with the columns Job, Delivery Schedule, Quantity, Bid Security) is the BID SECURITY amount: put it in bid_security_amount_pkr and NEVER in contract_value_pkr. contract_value_pkr only takes a figure the document labels as the estimated cost, BOQ cost, contract value, tender value or similar. If the document gives no such figure, contract_value_pkr is null.
 - If the document mentions PEC registration/licence without a specific category \
 letter, set pec_category_required to null but still note it in source_text_snippets \
 under a "pec_mention" key.
@@ -394,6 +395,28 @@ def _numbers(text: str) -> set[str]:
     return {m.replace(",", "") for m in _NUMBER.findall(text)}
 
 
+_AMOUNT_LABEL = re.compile(r"bids?[ -]security|estimated cost|estimate|boq|cost|contract value|tender value|value", re.I)
+
+
+def _only_near_bid_security(value, text: str, window: int = 250) -> bool:
+    """True when every place the number occurs in the document sits just after the words 'bid security'.
+    Then the figure is probably the bid security, not the contract value."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    digits = f"{value:.0f}"
+    flat = " ".join(text.replace(",", "").split())      # table layouts pad cells with lots of spaces
+    positions = [m.start() for m in re.finditer(re.escape(digits), flat)]
+    if not positions:
+        return False
+    for pos in positions:
+        labels = list(_AMOUNT_LABEL.finditer(flat[max(0, pos - window):pos]))
+        # only the label closest to the number counts: a table with both a "BOQ Cost" and a
+        # "Bid Security" column must not make a real contract value look like a bid security
+        if not labels or not re.match(r"bids?[ -]security", labels[-1].group(0), re.I):
+            return False
+    return True
+
+
 def _verified_figure(value, source_text: str) -> str | None:
     """Keep a figure the model copied from the document only if its numbers really occur in the document."""
     if value is None or isinstance(value, bool):
@@ -548,6 +571,11 @@ def extract_fields_with_llm(raw_text: str, tender_id: str, title: str,
     for code_field in ("pec_specialization_code", "addressee"):
         if extracted.get(code_field) is not None:
             extracted[code_field] = str(extracted[code_field]).strip() or None
+
+    if _only_near_bid_security(extracted.get("contract_value_pkr"), raw_text):
+        print(f"warning: the contract value {extracted['contract_value_pkr']:,.0f} appears in the document only "
+              f"next to the words 'bid security'. It may be the bid security amount, not the contract value. "
+              f"Check the PDF.", file=sys.stderr)
 
     extracted["annual_turnover_figure"] = _verified_figure(extracted.get("annual_turnover_figure"), raw_text)
 
