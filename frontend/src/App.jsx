@@ -600,9 +600,10 @@ export default function App() {
                   <p className="msg warn"><strong>Deadline.</strong> {result.deadline_warning}</p>
                 )}
                 {verdictKind === "unknown" && (
-                  <p className="msg warn"><strong>No verdict.</strong> Nothing could be compared, so this
-                    tender is neither a Select nor a Reject. The document gave none of the values the checks
-                    need, or your criteria have no limits for them. Read the full tender yourself.</p>
+                  <p className="msg warn"><strong>No verdict.</strong> Only {result.criteria_checked} of {result.criteria_total} checks
+                    could run and none failed. That is too little to call this tender a Select, and it is not a Reject either.
+                    The document gave few of the values the checks need, or your criteria have no limits for them.
+                    Read the full tender yourself.</p>
                 )}
                 {result.low_confidence && verdictKind !== "unknown" && (
                   <p className="msg warn"><strong>Low confidence.</strong> Most requirements could not be

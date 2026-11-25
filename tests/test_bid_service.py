@@ -11,7 +11,8 @@ from matching_engine import match
 
 @pytest.fixture
 def decided(make_tender, make_criteria):
-    """decided(contract_value) -> (tender, contractor, decision). 20M is a Select, 90M a Reject."""
+    """decided(contract_value) -> (tender, contractor, decision). 90M is a Reject. 20M passes its single check
+    (too few checks for a Select), which is fine here: the draft needs no confirmation unless it is a Reject."""
     def _decide(contract_value, tender_id="TS-1"):
         tender = make_tender(tender_id=tender_id, title="Road works", contract_value_pkr=contract_value)
         contractor = make_criteria(contractor_name="Alpha Builders", max_contract_value_pkr=50_000_000)

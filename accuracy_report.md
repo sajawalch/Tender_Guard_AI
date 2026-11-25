@@ -1,11 +1,11 @@
 # TenderGuard AI — Accuracy Report
 
-Measured on 2026-11-18 07:59 with `gpt-4o-mini` (temperature 0).
+Measured on 2026-11-18 13:44 with `gpt-4o-mini` (temperature 0).
 
 ## Synthetic (15 written tenders)
 
 - Tenders scored: **15**
-- Fields correct: **163/165 (98.8%)**
+- Fields correct: **165/165 (100.0%)**
 
 | Field | Correct | Accuracy |
 |---|---|---|
@@ -15,16 +15,11 @@ Measured on 2026-11-18 07:59 with `gpt-4o-mini` (temperature 0).
 | liquidated_damages_rate_percent_per_day | 15/15 | 100.0% |
 | liquidated_damages_cap_percent | 15/15 | 100.0% |
 | advance_payment_percent | 15/15 | 100.0% |
-| payment_cycle_days | 13/15 | 86.7% |
+| payment_cycle_days | 15/15 | 100.0% |
 | pec_category_required | 15/15 | 100.0% |
 | requires_active_taxpayer_status | 15/15 | 100.0% |
 | min_years_experience_required | 15/15 | 100.0% |
 | completion_period_days | 15/15 | 100.0% |
-
-**Mismatches**
-
-- `ST-2026-010` `payment_cycle_days`: expected `30`, got `None`
-- `ST-2026-015` `payment_cycle_days`: expected `30`, got `None`
 
 ## Real PPRA tenders (confirmed fields only)
 

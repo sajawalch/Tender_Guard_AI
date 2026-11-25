@@ -15,6 +15,7 @@ import api_server  # noqa: E402
 PROFILES = [
     {"contractor_name": "Alpha Builders", "pec_category_held": "C-3",
      "min_contract_value_pkr": 1_000_000, "max_contract_value_pkr": 50_000_000,
+     "max_bid_security_pkr": 5_000_000,
      "max_acceptable_payment_cycle_days": 30, "company_address": "Plot 1", "_notes": "demo firm"},
     {"contractor_name": "Beta Co", "pec_category_held": "C-6"},
 ]
@@ -38,7 +39,10 @@ def client(profiles_file):
 def pipeline(monkeypatch, make_tender):
     """Fakes for 'read the PDF' and 'ask the LLM'. Change state[...] inside a test."""
     state = {"text": "Some tender text", "llm_error": None, "read_error": None,
-             "tender": make_tender(tender_id="T-API", title="API tender", contract_value_pkr=20_000_000)}
+             # four of the eight checks can run and all pass, which is what a Select needs
+             "tender": make_tender(tender_id="T-API", title="API tender", contract_value_pkr=20_000_000,
+                                   pec_category_required="C-4", bid_security_amount_pkr=1_000_000,
+                                   requires_active_taxpayer_status=True)}
 
     def fake_read(path):
         if state["read_error"]:

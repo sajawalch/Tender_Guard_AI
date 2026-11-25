@@ -278,12 +278,22 @@ def test_insufficient_data_also_when_every_value_is_on_only_one_side(make_tender
     assert match(tender, crit).decision == "Insufficient data"
 
 
-def test_a_single_passing_check_is_still_a_select_but_low_confidence(make_tender, make_criteria):
+def test_a_few_passing_checks_are_not_enough_for_select(make_tender, make_criteria):
+    """Only 1 of 8 checks ran and it passed: nothing failed, but that is too little evidence to say Select."""
     d = match(make_tender(contract_value_pkr=10_000_000), make_criteria())
-    assert d.decision == "Select"
+    assert d.decision == "Insufficient data"
     assert d.criteria_checked == 1
     assert d.is_low_confidence
-    assert "NO VERDICT" not in d.confidence_note
+    assert "LOW CONFIDENCE" in d.confidence_note
+    assert "NO VERDICT" not in d.confidence_note          # that wording is only for 0 checks
+
+
+def test_two_passing_checks_are_still_not_enough_for_select(make_tender, make_criteria):
+    """The case seen on screen: taxpayer status and completion period passed, the other six were not stated."""
+    tender = make_tender(requires_active_taxpayer_status=True, completion_period_days=730)
+    d = match(tender, make_criteria(max_acceptable_completion_period_days=100))
+    assert d.criteria_checked == 2
+    assert d.decision == "Insufficient data"
 
 
 def test_a_single_failing_check_is_still_a_reject(make_tender, make_criteria):
@@ -298,6 +308,7 @@ def test_exactly_half_checked_is_not_low_confidence(make_tender, make_criteria):
     d = match(tender, crit)
     assert d.criteria_checked == 4
     assert not d.is_low_confidence
+    assert d.decision == "Select"
 
 
 def test_fewer_than_half_checked_is_low_confidence(make_tender, make_criteria):
@@ -305,15 +316,36 @@ def test_fewer_than_half_checked_is_low_confidence(make_tender, make_criteria):
     d = match(tender, make_criteria(max_bid_security_pkr=1_000_000))
     assert d.criteria_checked == 3
     assert d.is_low_confidence
+    assert d.decision == "Insufficient data"
     assert "could not compare" in d.confidence_note
 
 
 def test_skipped_check_never_causes_a_reject(make_tender, make_criteria):
-    """Missing information must not fail a contractor: the contract value passes, the LD check is skipped."""
-    tender = make_tender(contract_value_pkr=10_000_000, liquidated_damages_rate_percent_per_day=5.0)
-    d = match(tender, make_criteria())            # the contractor set no LD limit
+    """Missing information must not fail a contractor: here the LD check is skipped, five others pass."""
+    tender = make_tender(contract_value_pkr=10_000_000, pec_category_required="C-3", bid_security_amount_pkr=1_000_000,
+                         requires_active_taxpayer_status=True, min_years_experience_required=5,
+                         liquidated_damages_rate_percent_per_day=5.0)
+    crit = make_criteria(pec_category_held="C-3", max_bid_security_pkr=2_000_000, years_experience=8)   # no LD limit
+    d = match(tender, crit)
+    assert d.criteria_checked == 5
     assert d.decision == "Select"
     assert "liquidated_damages" in d.skipped_criteria
+
+
+def test_a_failed_check_is_a_reject_even_when_few_checks_ran(make_tender, make_criteria):
+    """Evidence against beats missing evidence: one failed check out of one is a Reject, not 'Insufficient data'."""
+    d = match(make_tender(contract_value_pkr=90_000_000), make_criteria(max_contract_value_pkr=50_000_000))
+    assert d.criteria_checked == 1
+    assert d.decision == "Reject"
+
+
+def test_select_needs_at_least_half_of_the_checks(make_tender, make_criteria):
+    four = make_tender(contract_value_pkr=10_000_000, pec_category_required="C-3",
+                       bid_security_amount_pkr=500_000, requires_active_taxpayer_status=True)
+    crit = make_criteria(max_bid_security_pkr=1_000_000)
+    assert (match(four, crit).criteria_checked, match(four, crit).decision) == (4, "Select")
+    three = make_tender(contract_value_pkr=10_000_000, pec_category_required="C-3", bid_security_amount_pkr=500_000)
+    assert (match(three, crit).criteria_checked, match(three, crit).decision) == (3, "Insufficient data")
 
 
 def test_matching_engine_contains_no_llm_code():

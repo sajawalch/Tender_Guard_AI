@@ -174,10 +174,12 @@ ALL_CHECKS = [
 def match(tender: TenderTerms, criteria: ContractorCriteria) -> MatchDecision:
     """Run every applicable check and roll up to a final decision.
     Rules:
-      - ANY failed criterion -> "Reject".
-      - At least one check ran and none failed -> "Select" (skipped checks never reject).
-      - NO check could run -> "Insufficient data". Nothing was compared, so the tender is
-        neither approved nor rejected; calling it "Select" would be a claim with no evidence."""
+      - ANY failed criterion -> "Reject". (A failed check is evidence on its own.)
+      - Otherwise, if fewer than half of the checks could run -> "Insufficient data". Nothing failed, but
+        too little was compared to approve the tender, and it is not a Reject either. "Select" needs
+        positive evidence from at least half of the checks.
+      - Otherwise (at least half of the checks ran and none failed) -> "Select".
+      Skipped checks never cause a Reject."""
     results = []
     skipped = []
     for check_fn in ALL_CHECKS:
@@ -190,10 +192,10 @@ def match(tender: TenderTerms, criteria: ContractorCriteria) -> MatchDecision:
             # user can see how much of the decision is actually evidence-based.
             skipped.append(check_fn.__name__.replace("check_", "", 1))
 
-    if not results:
-        decision = "Insufficient data"
-    elif any(not r.passed for r in results):
+    if any(not r.passed for r in results):
         decision = "Reject"
+    elif len(results) * 2 < len(ALL_CHECKS):        # fewer than half of the checks could run
+        decision = "Insufficient data"
     else:
         decision = "Select"
 

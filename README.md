@@ -1,3 +1,5 @@
+![tests](https://github.com/sajawalch/Tender_Guard_AI/actions/workflows/tests.yml/badge.svg)
+
 # TenderGuard AI
 
 A bid / no-bid screening tool for small and mid-sized **Pakistani construction contractors**.
@@ -8,6 +10,16 @@ security they can afford, tax status, penalty tolerance, ...). They then upload 
 checked, a deadline warning, and an optional **draft bid document** (.docx) to complete.
 
 It does one decision reliably and transparently. It is not a general tender summariser.
+
+## Screenshots
+
+| | |
+|---|---|
+| **1. Set your criteria once.** A live preview shows how the firm is understood. | ![Your criteria](docs/01-criteria.png) |
+| **2. Select.** Every check ran and passed. The strip shows how much was checked. | ![Select result](docs/02-select.png) |
+| **3. Reject.** Each failed check says why, with the tender's value next to the firm's limit. | ![Reject result](docs/03-reject.png) |
+| **4. Not enough data.** When nothing can be compared, the app does not guess Select or Reject. | ![Not enough data](docs/04-not-enough-data.png) |
+| **5. Draft bid.** The first page is for the contractor only: warnings, a to-do list and a note that the checklist is AI-written. | ![Draft bid cover page](docs/05-draft-cover.png) |
 
 ## How it works
 
@@ -24,8 +36,11 @@ The language model only **reads documents**. It never makes the decision.
 
 - A check runs only when **both** the tender and the contractor's profile give a value. Otherwise it
   is skipped and listed in the coverage note ("5 of 8 criteria checked"). A skipped check never rejects.
-- **Reject** = any check failed. **Select** = at least one check ran and none failed.
-  **Insufficient data** = no check could run, so nothing was compared. It is neither approved nor rejected.
+- **Reject** = any check failed.
+  **Select** = at least half of the checks (4 of 8) could run and none failed.
+  **Insufficient data** = fewer than half of the checks could run and none failed. Nothing was found against the
+  tender, but too little was compared to approve it, so the app does not call it a Select. This is common for real
+  tenders that state few of the values the checks need (or for notices that are not construction tenders at all).
 - A value the document does not state is `null`, never guessed. A bid security given only as a percentage is
   worked out by the matcher from the contract value; the extractor never calculates it.
 - The 8 checks: contract value, PEC category, bid security, liquidated damages, advance payment,
